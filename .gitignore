@@ -1,0 +1,10 @@
+# credentials
+credentials.json
+.env
+config.py
+
+
+# Python cache
+__pycache__/
+*.pyc
+.venv/
