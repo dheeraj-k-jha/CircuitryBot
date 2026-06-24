@@ -3,7 +3,7 @@ import gspread
 import json
 import os
 from google.oauth2.service_account import Credentials
-from config import SHEET_NAME , CREDENTIALS_FILE
+from config import SHEET_NAME , GOOGLE_CREDENTIALS
 from datetime import datetime , timedelta
 
 SCOPES = [
@@ -32,12 +32,12 @@ _workbook = None
 def get_sheet_client():
     global _gc
     if _gc is None:
-        creds_dict = os.getenv("GOOGLE_CREDENTIALS")
+        creds_dict = GOOGLE_CREDENTIALS
         if creds_dict:
               creds_json = json.loads(creds_dict)
               creds = Credentials.from_service_account_info(creds_json,scopes = SCOPES)
         else:
-             creds = Credentials.from_service_account_file("credentials.json", scopes = SCOPES) 
+             print("unable to access google api credentials") 
         _gc = gspread.authorize(creds)
     return _gc
 
