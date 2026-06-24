@@ -335,7 +335,7 @@ async def payment_confirmed(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     await query.edit_message_text(
         f"🎉 Thank you! Order <b>{order_id}</b> payment claim received.\n"
-        f"Your invoice will be sent sortly after payment verification by the store.",
+        f"Your invoice will be sent sortly after payment verification by the store,\n Please wait.",
         parse_mode="HTML"
     )
     # notify owner
