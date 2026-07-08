@@ -22,4 +22,6 @@ An automated, Python-based storefront bot designed to manage shopping carts, pro
 git clone [https://github.com/dheeraj-k-jha/CircuitryBot.git](https://github.com/dheeraj-k-jha/CircuitryBot.git)
 cd CircuitryBot
 
-### Try it on: [https://t.me/StoreBuddyy_Bot]
+### Try it on:
+
+[Telegram Link](https://t.me/StoreBuddyy_Bot)
