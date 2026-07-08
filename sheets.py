@@ -153,3 +153,19 @@ def update_order_status(order_id, status):
         # status column is column 11
         ws.update_cell(cell.row, 12, status)
 
+# customer complainst:
+def write_complaint(user_id, customer_name, order_id, issue):
+    ws = get_worksheet("Complaints")
+    complaint_id = f"CMP-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    ws.append_row([complaint_id, timestamp, str(user_id), customer_name, order_id, issue, "Open", "Pending"])
+    return complaint_id
+
+
+# Customer Enquiry  
+def write_enquiry(user_id, customer_name, phone, product_interest, message):
+    ws = get_worksheet("Enquiries")
+    enquiry_id = f"ENQ-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    ws.append_row([enquiry_id, timestamp, str(user_id), customer_name, phone, product_interest, message, "Open"])
+    return enquiry_id

@@ -18,7 +18,9 @@ from keep_alive import keep_alive
 
 
 
-# helper function:
+#-------------------------------------------------------------------------
+#-----------------------Helper Function-----------------------------------
+#-------------------------------------------------------------------------
 def build_category_keyboard(context=None):
     categories = sheets.get_all_categories()
     buttons = [
@@ -30,10 +32,17 @@ def build_category_keyboard(context=None):
     if context and not cart_manager.is_cart_empty(context):
         count = len(cart_manager.get_cart(context))
         cart_count = f" ({count})"
-    buttons.append([InlineKeyboardButton(f"🛒 View Cart{cart_count}", callback_data="view_cart")])
+    buttons.append(
+        [InlineKeyboardButton(f"🛒 View Cart{cart_count}", callback_data="view_cart")],
+        [InlineKeyboardButton("🚨 Complaint", callback_data="complaint")],
+        [InlineKeyboardButton("💬 Enquiry", callback_data="enquiry")]
+    )
     return InlineKeyboardMarkup(buttons)
 
-# start command
+
+#-------------------------------------------------------------------------
+#-----------------------Start Command-------------------------------------
+#-------------------------------------------------------------------------
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         f"👋 Welcome to <b>{config.STORE_NAME}</b>!\n\n"
@@ -62,6 +71,7 @@ async def category_selected(update: Update , context: ContextTypes.DEFAULT_TYPE)
     reply_markup=InlineKeyboardMarkup(buttons)
   )
 
+
 # back to categories function
 async def back_to_categories(update: Update , context: ContextTypes.DEFAULT_TYPE):
   query = update.callback_query
@@ -75,7 +85,9 @@ async def back_to_categories(update: Update , context: ContextTypes.DEFAULT_TYPE
 
 
 
-# defining cache for image
+#-------------------------------------------------------------------------
+#-----------------------Caching Image-------------------------------------
+#-------------------------------------------------------------------------
 TELEGRAM_IMAGE_CACHE = {}  # Format: {"PRD-101": "AgACAgQAAx..."}
 
 # product selected function
@@ -115,6 +127,7 @@ async def product_selected(update: Update , context: ContextTypes.DEFAULT_TYPE):
     InlineKeyboardButton("🏠 Main Menu", callback_data="back_to_categories")]
   ]
   
+
   # If it's cached, skip all download logic entirely
   if cached_file_id:
     print(f"Serving image for {product_id} from Telegram Cache!")
@@ -126,6 +139,7 @@ async def product_selected(update: Update , context: ContextTypes.DEFAULT_TYPE):
     )
     await query.message.delete()
     return
+
 
   # 3. FALLBACK: If not cached, handle the image download (Only happens ONCE per product)
   image_url = product.get("Image_url", "").strip()
@@ -176,6 +190,7 @@ async def product_selected(update: Update , context: ContextTypes.DEFAULT_TYPE):
         reply_markup=InlineKeyboardMarkup(buttons)
     )
 
+
 # preloading products to improve snappiness of bot
 async def post_init(application):
   print("Preloading product cache...")
@@ -183,7 +198,9 @@ async def post_init(application):
   print("Cache ready — bot is live!")
 
 
-# cart functions:
+#-------------------------------------------------------------------------
+#-----------------------Cart Function-------------------------------------
+#-------------------------------------------------------------------------
 # add to cart function:
 async def add_to_cart(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -204,7 +221,9 @@ async def add_to_cart(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer(f"✅ {product['Product_name']} added to cart!", show_alert=True)
 
 
-# view cart function
+#-------------------------------------------------------------------------
+#----------------------View Cart Function---------------------------------
+#-------------------------------------------------------------------------
 async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -237,7 +256,10 @@ async def clear_cart(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ])
     )
 
-# checkout function: 
+
+#-------------------------------------------------------------------------
+#-----------------------Checkout Function---------------------------------
+#-------------------------------------------------------------------------
 WAITING_NAME, WAITING_UPI_ID ,WAITING_PHONE = range(3)  # conversation states
 
 async def checkout_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -324,7 +346,9 @@ async def checkout_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return ConversationHandler.END
 
 
-# payment confirmation function:
+#-------------------------------------------------------------------------
+#-----------------------Payment Confirmation Function---------------------
+#-------------------------------------------------------------------------
 async def payment_confirmed(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -357,7 +381,11 @@ async def cancel_order(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("🏠 Main Menu", callback_data="back_to_categories")]
         ])
     )
-# conversation handler wrapper
+
+
+#-------------------------------------------------------------------------
+#-----------------------Conversation handler Wrapper----------------------
+#-------------------------------------------------------------------------
 warnings.filterwarnings("ignore", message=".*per_message=False.*", category=PTBUserWarning)
 
 checkout_conv = ConversationHandler(
@@ -371,7 +399,10 @@ checkout_conv = ConversationHandler(
     per_message= False
 )
 
-# Contact Handler:
+
+#-------------------------------------------------------------------------
+#-----------------------Contact Handler-----------------------------------
+#-------------------------------------------------------------------------
 async def contact(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -385,13 +416,201 @@ async def contact(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"🕐 Hours: {config.STORE_HOURS}"
         ),
         parse_mode="HTML",
-        reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("🏠 Main Menu", callback_data="back_to_categories")]
-        ])
+        reply_markup=InlineKeyboardMarkup(
+            [InlineKeyboardButton("🚨 File Complaint", callback_data="complaint"),
+            InlineKeyboardButton("💬 Enquiry", callback_data="enquiry")],
+            [InlineKeyboardButton("🏠 Main Menu", callback_data="back_to_categories")])
+        )
+
+
+#-------------------------------------------------------------------------
+#-----------------------Complaint Handler---------------------------------
+#-------------------------------------------------------------------------
+# conversation states
+COMP_NAME, COMP_ORDER_ID, COMP_ISSUE = range(3, 6)
+ENQ_NAME, ENQ_PHONE, ENQ_PRODUCT, ENQ_MESSAGE = range(6, 10)
+
+
+async def complaint_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    await query.message.delete()
+    await context.bot.send_message(
+        chat_id=update.effective_chat.id,
+        text="📝 <b>File a Complaint</b>\n\nPlease enter your <b>full name</b>:",
+        parse_mode="HTML"
     )
+    return COMP_NAME
+
+async def complaint_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data["comp_name"] = update.message.text.strip()
+    await update.message.reply_text(
+        "🔢 Enter your <b>Order ID</b> (e.g. ORD-20260623151230)\nIf you don't have one, type <b>N/A</b>:",
+        parse_mode="HTML"
+    )
+    return COMP_ORDER_ID
+
+async def complaint_order_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data["comp_order_id"] = update.message.text.strip()
+    await update.message.reply_text(
+        "📣 Describe your <b>issue</b> in detail:",
+        parse_mode="HTML"
+    )
+    return COMP_ISSUE
+
+async def complaint_issue(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    issue = update.message.text.strip()
+    name = context.user_data.get("comp_name", "Unknown")
+    order_id = context.user_data.get("comp_order_id", "N/A")
+    user_id = update.effective_user.id
+
+    await update.message.reply_text("⏳ Submitting your complaint...")
+
+    try:
+        complaint_id = await asyncio.to_thread(
+            sheets.write_complaint, user_id, name, order_id, issue
+        )
+        await update.message.reply_text(
+            f"✅ <b>Complaint Submitted!</b>\n\n"
+            f"Complaint ID: <b>{complaint_id}</b>\n"
+            f"We'll look into it and contact you shortly.",
+            parse_mode="HTML",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🏠 Main Menu", callback_data="back_to_categories")]
+            ])
+        )
+        await context.bot.send_message(
+            chat_id=config.OWNER_ID,
+            text=f"🚨 New complaint from {name}\nOrder: {order_id}\nIssue: {issue}\nID: {complaint_id}"
+        )
+    except Exception as e:
+        print(f"Complaint error: {e}")
+        await update.message.reply_text(
+            "❌ Something went wrong. Please contact the store directly.",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🏠 Main Menu", callback_data="back_to_categories")]
+            ])
+        )
+    return ConversationHandler.END
+
+async def complaint_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("Complaint cancelled.")
+    return ConversationHandler.END
 
 
-# refresh command:
+#-------------------------------------------------------------------------
+#-----------------------Complaint Handler Wrapper-------------------------
+#-------------------------------------------------------------------------
+complaint_conv = ConversationHandler(
+    entry_points=[CallbackQueryHandler(complaint_start, pattern="^complaint$"),
+                  CommandHandler("complaint", complaint_start)],
+    states={
+        COMP_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, complaint_name)],
+        COMP_ORDER_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, complaint_order_id)],
+        COMP_ISSUE: [MessageHandler(filters.TEXT & ~filters.COMMAND, complaint_issue)]
+    },
+    fallbacks=[CommandHandler("cancel", complaint_cancel)],
+    per_message=False
+)
+
+
+#-------------------------------------------------------------------------
+#-----------------------Enquiry Handler-----------------------------------
+#-------------------------------------------------------------------------
+async def enquiry_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    await query.message.delete()
+    await context.bot.send_message(
+        chat_id=update.effective_chat.id,
+        text="💬 <b>Product Enquiry</b>\n\nPlease enter your <b>full name</b>:",
+        parse_mode="HTML"
+    )
+    return ENQ_NAME
+
+async def enquiry_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data["enq_name"] = update.message.text.strip()
+    await update.message.reply_text("📱 Enter your <b>phone number</b>:", parse_mode="HTML")
+    return ENQ_PHONE
+
+async def enquiry_phone(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data["enq_phone"] = update.message.text.strip()
+    await update.message.reply_text(
+        "🛍️ Which <b>product</b> are you enquiring about?",
+        parse_mode="HTML"
+    )
+    return ENQ_PRODUCT
+
+async def enquiry_product(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data["enq_product"] = update.message.text.strip()
+    await update.message.reply_text(
+        "💬 Enter your <b>message or question</b>:",
+        parse_mode="HTML"
+    )
+    return ENQ_MESSAGE
+
+async def enquiry_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    message = update.message.text.strip()
+    name = context.user_data.get("enq_name", "Unknown")
+    phone = context.user_data.get("enq_phone", "Unknown")
+    product = context.user_data.get("enq_product", "Unknown")
+    user_id = update.effective_user.id
+
+    await update.message.reply_text("⏳ Submitting your enquiry...")
+
+    try:
+        enquiry_id = await asyncio.to_thread(
+            sheets.write_enquiry, user_id, name, phone, product, message
+        )
+        await update.message.reply_text(
+            f"✅ <b>Enquiry Submitted!</b>\n\n"
+            f"Enquiry ID: <b>{enquiry_id}</b>\n"
+            f"We'll get back to you shortly.",
+            parse_mode="HTML",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🏠 Main Menu", callback_data="back_to_categories")]
+            ])
+        )
+        await context.bot.send_message(
+            chat_id=config.OWNER_ID,
+            text=f"💬 New enquiry from {name}\nPhone: {phone}\nProduct: {product}\nMessage: {message}\nID: {enquiry_id}"
+        )
+    except Exception as e:
+        print(f"Enquiry error: {e}")
+        await update.message.reply_text(
+            "❌ Something went wrong. Please contact the store directly.",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🏠 Main Menu", callback_data="back_to_categories")]
+            ])
+        )
+    return ConversationHandler.END
+
+async def enquiry_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("Enquiry cancelled.")
+    return ConversationHandler.END
+
+
+#-------------------------------------------------------------------------
+#-----------------------Enquiry Handler Wrapper---------------------------
+#-------------------------------------------------------------------------
+enquiry_conv = ConversationHandler(
+    entry_points=[CallbackQueryHandler(enquiry_start, pattern="^enquiry$"),
+                  CommandHandler("enquiry", enquiry_start)],
+    states={
+        ENQ_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, enquiry_name)],
+        ENQ_PHONE: [MessageHandler(filters.TEXT & ~filters.COMMAND, enquiry_phone)],
+        ENQ_PRODUCT: [MessageHandler(filters.TEXT & ~filters.COMMAND, enquiry_product)],
+        ENQ_MESSAGE: [MessageHandler(filters.TEXT & ~filters.COMMAND, enquiry_message)]
+    },
+    fallbacks=[CommandHandler("cancel", enquiry_cancel)],
+    per_message=False
+)
+
+
+
+#-------------------------------------------------------------------------
+#-----------------------Refresh Command-----------------------------------
+#-------------------------------------------------------------------------
 async def refresh(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id != config.OWNER_ID:
         return
@@ -399,7 +618,9 @@ async def refresh(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("✅ Cache cleared — next request fetches fresh data.")
 
 
-# error handler
+#-------------------------------------------------------------------------
+#-----------------------Error Handler-------------------------------------
+#-------------------------------------------------------------------------
 async def error_handler(update, context):
     print(f"ERROR: {context.error}")
     
@@ -413,7 +634,9 @@ async def error_handler(update, context):
         )
 
 
-# main function
+#-------------------------------------------------------------------------
+#-----------------------Main Function-------------------------------------
+#-------------------------------------------------------------------------
 def main():
     keep_alive()
     app = Application.builder().token(config.BOT_TOKEN).post_init(post_init).build()
@@ -433,6 +656,8 @@ def main():
 
     # conversation handler:
     app.add_handler(checkout_conv)
+    app.add_handler(complaint_conv)
+    app.add_handler(enquiry_conv)
 
     # Payment handler:
     app.add_handler(CallbackQueryHandler(payment_confirmed, pattern="^paid_"))
