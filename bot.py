@@ -33,9 +33,9 @@ def build_category_keyboard(context=None):
         count = len(cart_manager.get_cart(context))
         cart_count = f" ({count})"
     buttons.append(
-        [InlineKeyboardButton(f"🛒 View Cart{cart_count}", callback_data="view_cart")],
-        [InlineKeyboardButton("🚨 Complaint", callback_data="complaint")],
-        [InlineKeyboardButton("💬 Enquiry", callback_data="enquiry")]
+        [InlineKeyboardButton(f"🛒 View Cart{cart_count}", callback_data="view_cart"),
+        InlineKeyboardButton("🚨 Complaint", callback_data="complaint"),
+        InlineKeyboardButton("💬 Enquiry", callback_data="enquiry")]
     )
     return InlineKeyboardMarkup(buttons)
 
