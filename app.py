@@ -8,6 +8,7 @@ from telegram import Bot
 
 
 app = Flask(__name__)
+payment_messages = {}   # order_id -> (chat_id, message_id)
 
 #-------------------------------------------------------------------------
 #-----------------------razorpay/telegram credentials---------------------
@@ -58,6 +59,13 @@ def razorpay_webhook():
         sheets.update_order_status(order_id, "Paid")
         chat_id = order["user_id"]
         pdf_path = generate_invoice_pdf(order_id)
+
+        if order_id in payment_messages:
+            chat_id_saved, message_id_saved = payment_messages.pop(order_id)
+            try:
+                asyncio.run(bot.delete_message(chat_id=chat_id_saved, message_id=message_id_saved))
+            except Exception as e:
+                print(f"Could not delete payment message: {e}")
 
         asyncio.run(bot.send_document(chat_id=chat_id, document=open(pdf_path, "rb")))
         asyncio.run(bot.send_message(chat_id=chat_id, text="Payment received! Here's your invoice."))

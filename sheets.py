@@ -181,7 +181,7 @@ def get_order_details(order_id):
     total = sum(item["qty"] * item["price"] for item in items)
 
     return {
-        "shop_name": config.SHOP_NAME,
+        "shop_name": config.STORE_NAME,
         "date": first["Timestamp"],
         "customer_name": first["Customer Name"],
         "user_id": first["User ID"],

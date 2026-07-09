@@ -1,6 +1,5 @@
 import config
 import razorpay
-import os
 
 
 #-------------------------------Razorpay Credentials-----------------------------
@@ -21,6 +20,8 @@ def create_payment_link(order_id, amount_rupees, customer_name, customer_phone, 
         },
         "notify": {"sms": True, "email": False},
         "reference_id": str(order_id),
+        "callback_url": "https://t.me/StoreBuddyy_Bot",
+        "callback_method": "get"
     }
 
     response = client.payment_link.create(link_data)

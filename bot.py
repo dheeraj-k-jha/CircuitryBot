@@ -4,7 +4,7 @@ import httpx
 import asyncio
 import os
 
-from app import app
+from app import app, payment_messages
 from telegram import Update , InlineKeyboardButton , InlineKeyboardMarkup
 from telegram.ext import ConversationHandler ,filters , CommandHandler , MessageHandler , Application , CallbackQueryHandler , ContextTypes
 from telegram.error import BadRequest
@@ -397,7 +397,7 @@ async def checkout_phone(update: Update, context: ContextTypes.DEFAULT_TYPE):
             order_id, amount, name, phone, config.STORE_NAME
         )
         
-        await update.message.reply_text(
+        sent_message = await update.message.reply_text(
             f"✅ <b>Pay to confirm your order!</b>\n\n"
             f"Order ID: <b>{order_id}</b>\n"
             f"Name: {name}\n"
@@ -412,6 +412,8 @@ async def checkout_phone(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 [InlineKeyboardButton("❌ Cancel Order", callback_data=f"cancel_order_{order_id}")]
             ])
         )
+        payment_messages[order_id] = (update.effective_chat.id, sent_message.message_id)
+
     except Exception as e:
         print(f"Checkout error: {e}")
         await update.message.reply_text(
