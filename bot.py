@@ -2,18 +2,22 @@ import io
 import warnings
 import httpx
 import asyncio
+import os
 
+from app import app
 from telegram import Update , InlineKeyboardButton , InlineKeyboardMarkup
 from telegram.ext import ConversationHandler ,filters , CommandHandler , MessageHandler , Application , CallbackQueryHandler , ContextTypes
 from telegram.error import BadRequest
 from telegram.warnings import PTBUserWarning
+from threading import Thread
+from razorpay_utils import create_payment_link
+
 
 
 
 import cart_manager
 import config
 import sheets
-from keep_alive import keep_alive
 
 
 
@@ -260,7 +264,88 @@ async def clear_cart(update: Update, context: ContextTypes.DEFAULT_TYPE):
 #-------------------------------------------------------------------------
 #-----------------------Checkout Function---------------------------------
 #-------------------------------------------------------------------------
-WAITING_NAME, WAITING_UPI_ID ,WAITING_PHONE = range(3)  # conversation states
+
+# WAITING_NAME, WAITING_UPI_ID ,WAITING_PHONE = range(3)  # conversation states
+
+# async def checkout_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+#     query = update.callback_query
+#     await query.answer()
+    
+#     if cart_manager.is_cart_empty(context):
+#         await context.bot.send_message(
+#            chat_id = query.message.chat_id,
+#            text="Your cart is empty.")
+#         return ConversationHandler.END
+    
+#     await query.message.delete()
+#     await context.bot.send_message(
+#         chat_id = query.message.chat_id,
+#         text="📝 <b>Checkout:</b>\n\n<b>Please enter your full name</b>:",
+#         parse_mode="HTML"
+#     )
+#     return WAITING_NAME
+
+
+# async def checkout_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
+#     context.user_data["checkout_name"] = update.message.text.strip()
+#     await update.message.reply_text("📱 <b>Now enter upi id you are going to use for payment</b>:", parse_mode="HTML")
+#     return WAITING_UPI_ID
+
+
+# async def checkout_upi_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
+#     context.user_data["checkout_upi_id"] = update.message.text.strip()
+#     await update.message.reply_text("📱 <b>Now enter your phone number</b>:", parse_mode="HTML")
+#     return WAITING_PHONE
+
+
+# async def checkout_phone(update: Update, context: ContextTypes.DEFAULT_TYPE):
+#     phone = update.message.text.strip()
+#     name = context.user_data.get("checkout_name", "Unknown")
+#     upi_id = context.user_data.get("checkout_upi_id","Unknown")
+#     user_id = update.effective_user.id
+#     cart = cart_manager.get_cart(context)
+    
+#     await update.message.reply_text("⏳ Placing your order...")
+    
+#     try:
+#         order_id = await asyncio.to_thread(
+#             sheets.write_order, name, upi_id ,phone, user_id, cart
+#         )
+        
+#         summary = cart_manager.get_cart_summary(context)
+#         amount = cart_manager.get_cart_total(context)
+#         cart_manager.clear_cart(context)
+        
+#         await update.message.reply_text(
+#             f"✅ <b>Order Placed!</b>\n\n"
+#             f"Order ID: <b>{order_id}</b>\n"
+#             f"Name: {name}\n"
+#             f"Phone: {phone}\n"
+#             f"Upi Id: {upi_id}\n\n "
+#             f"{summary}\n\n"
+#             f"💳 <b>Pay By UPI:</b>\n"
+#             f"UPI ID: <code>{config.UPI_ID}</code>\n {config.UPI_NAME}\n"
+#             f"Amount: ₹{amount}\n\n"
+#             f"After paying, tap <b>I've Paid</b> to notify the store.\n"
+#             f"We'll contact you shortly to confirm delivery.",
+#             parse_mode="HTML",
+#             reply_markup=InlineKeyboardMarkup([
+#                 [InlineKeyboardButton("✅ I've Paid", callback_data=f"paid_{order_id}")], 
+#                 [InlineKeyboardButton("❌ Cancel Order", callback_data=f"cancel_order_{order_id}")]
+#             ])
+#         )
+#     except Exception as e:
+#         print(f"Checkout error: {e}")
+#         await update.message.reply_text(
+#             "❌ Something went wrong placing your order. Please contact the store directly.",
+#             reply_markup=InlineKeyboardMarkup([
+#                 [InlineKeyboardButton("🏠 Main Menu", callback_data="back_to_categories")]
+#             ])
+#         )
+    
+#     return ConversationHandler.END
+
+WAITING_NAME, WAITING_PHONE = range(2)  # removed WAITING_UPI_ID — was range(3)
 
 async def checkout_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -283,20 +368,15 @@ async def checkout_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def checkout_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["checkout_name"] = update.message.text.strip()
-    await update.message.reply_text("📱 <b>Now enter upi id you are going to use for payment</b>:", parse_mode="HTML")
-    return WAITING_UPI_ID
-
-
-async def checkout_upi_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data["checkout_upi_id"] = update.message.text.strip()
     await update.message.reply_text("📱 <b>Now enter your phone number</b>:", parse_mode="HTML")
     return WAITING_PHONE
+
+# checkout_upi_id function fully removed — not needed anymore
 
 
 async def checkout_phone(update: Update, context: ContextTypes.DEFAULT_TYPE):
     phone = update.message.text.strip()
     name = context.user_data.get("checkout_name", "Unknown")
-    upi_id = context.user_data.get("checkout_upi_id","Unknown")
     user_id = update.effective_user.id
     cart = cart_manager.get_cart(context)
     
@@ -304,28 +384,31 @@ async def checkout_phone(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     try:
         order_id = await asyncio.to_thread(
-            sheets.write_order, name, upi_id ,phone, user_id, cart
+            sheets.write_order, name, phone, user_id, cart
         )
         
         summary = cart_manager.get_cart_summary(context)
         amount = cart_manager.get_cart_total(context)
         cart_manager.clear_cart(context)
         
+        # --- NEW: create Razorpay payment link instead of showing static UPI ---
+        pay_url, payment_link_id = await asyncio.to_thread(
+            create_payment_link,
+            order_id, amount, name, phone, config.STORE_NAME
+        )
+        
         await update.message.reply_text(
             f"✅ <b>Order Placed!</b>\n\n"
             f"Order ID: <b>{order_id}</b>\n"
             f"Name: {name}\n"
-            f"Phone: {phone}\n"
-            f"Upi Id: {upi_id}\n\n "
+            f"Phone: {phone}\n\n"
             f"{summary}\n\n"
-            f"💳 <b>Pay By UPI:</b>\n"
-            f"UPI ID: <code>{config.UPI_ID}</code>\n {config.UPI_NAME}\n"
-            f"Amount: ₹{amount}\n\n"
-            f"After paying, tap <b>I've Paid</b> to notify the store.\n"
-            f"We'll contact you shortly to confirm delivery.",
+            f"💳 <b>Complete Payment:</b>\n"
+            f"Amount: ₹{amount}\n"
+            f"Pay here: {pay_url}\n\n"
+            f"You'll get your invoice automatically once payment is confirmed.",
             parse_mode="HTML",
             reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("✅ I've Paid", callback_data=f"paid_{order_id}")], 
                 [InlineKeyboardButton("❌ Cancel Order", callback_data=f"cancel_order_{order_id}")]
             ])
         )
@@ -340,7 +423,6 @@ async def checkout_phone(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     return ConversationHandler.END
 
-
 async def checkout_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Checkout cancelled.")
     return ConversationHandler.END
@@ -349,24 +431,24 @@ async def checkout_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
 #-------------------------------------------------------------------------
 #-----------------------Payment Confirmation Function---------------------
 #-------------------------------------------------------------------------
-async def payment_confirmed(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    order_id = query.data.replace("paid_", "")
+# async def payment_confirmed(update: Update, context: ContextTypes.DEFAULT_TYPE):
+#     query = update.callback_query
+#     await query.answer()
+#     order_id = query.data.replace("paid_", "")
     
-    # update status in sheet
-    await asyncio.to_thread(sheets.update_order_status, order_id, "Payment Confirmation Pending")
+#     # update status in sheet
+#     await asyncio.to_thread(sheets.update_order_status, order_id, "Payment Confirmation Pending")
     
-    await query.edit_message_text(
-        f"🎉 Thank you! Order <b>{order_id}</b> payment claim received.\n"
-        f"Your invoice will be sent sortly after payment verification by the store,\n Please wait.",
-        parse_mode="HTML"
-    )
-    # notify owner
-    await context.bot.send_message(
-        chat_id=config.OWNER_ID,
-        text=f"💰 Payment claimed for Order {order_id}\nVerify UPI and confirm!"
-    )
+#     await query.edit_message_text(
+#         f"🎉 Thank you! Order <b>{order_id}</b> payment claim received.\n"
+#         f"Your invoice will be sent sortly after payment verification by the store,\n Please wait.",
+#         parse_mode="HTML"
+#     )
+#     # notify owner
+#     await context.bot.send_message(
+#         chat_id=config.OWNER_ID,
+#         text=f"💰 Payment claimed for Order {order_id}\nVerify UPI and confirm!"
+#     )
 
 async def cancel_order(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -383,6 +465,8 @@ async def cancel_order(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
+
+
 #-------------------------------------------------------------------------
 #-----------------------Conversation handler Wrapper----------------------
 #-------------------------------------------------------------------------
@@ -392,7 +476,6 @@ checkout_conv = ConversationHandler(
     entry_points=[CallbackQueryHandler(checkout_start, pattern="^checkout$") , CommandHandler("checkout",checkout_start)],
     states={
         WAITING_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, checkout_name)],
-        WAITING_UPI_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, checkout_upi_id)],
         WAITING_PHONE: [MessageHandler(filters.TEXT & ~filters.COMMAND, checkout_phone)]
     },
     fallbacks=[CommandHandler("cancel", checkout_cancel)],
@@ -634,11 +717,17 @@ async def error_handler(update, context):
         )
 
 
+#------------------------------------------------------------------------
+#--------------------------Running flask Function------------------------
+#------------------------------------------------------------------------
+def run_flask():
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
+
 #-------------------------------------------------------------------------
 #-----------------------Main Function-------------------------------------
 #-------------------------------------------------------------------------
 def main():
-    keep_alive()
     app = Application.builder().token(config.BOT_TOKEN).post_init(post_init).build()
   
     # handlers
@@ -660,7 +749,7 @@ def main():
     app.add_handler(enquiry_conv)
 
     # Payment handler:
-    app.add_handler(CallbackQueryHandler(payment_confirmed, pattern="^paid_"))
+    # app.add_handler(CallbackQueryHandler(payment_confirmed, pattern="^paid_"))
     app.add_handler(CallbackQueryHandler(cancel_order, pattern="^cancel_order_"))
 
 
@@ -675,4 +764,7 @@ def main():
 
 # calling main()
 if __name__ == "__main__":
+    flask_thread = Thread(target=run_flask)
+    flask_thread.daemon = True
+    flask_thread.start()
     main()

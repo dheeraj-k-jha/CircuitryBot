@@ -23,8 +23,7 @@ ORDERS_HEADERS = {
     "Quantity": 8,
     "Unit Price": 9,
     "Total": 10,
-    "upi_id":11,
-    "Status": 12
+    "Status": 11
 }
 # creating client
 _gc = None
@@ -119,7 +118,7 @@ def get_product_specs(product_id):
         return []
 
 # write order:
-def write_order(customer_name, upi_id ,customer_phone, user_id, cart):
+def write_order(customer_name,customer_phone, user_id, cart):
     ws = get_worksheet("Orders")
     all_orders = ws.get_all_records()
     
@@ -139,19 +138,59 @@ def write_order(customer_name, upi_id ,customer_phone, user_id, cart):
             item["qty"],
             item["price"],
             item["qty"] * item["price"],
-            upi_id,
             "Payment Confirmation Pending"
         ])
     
     return order_id
 
-# update order status:
+# # update order status:
+# def update_order_status(order_id, status):
+#     ws = get_worksheet("Orders")
+#     cell = ws.find(order_id)
+#     if cell:
+#         # status column is column 11
+#         ws.update_cell(cell.row, 11, status)
+
+
+#-------------------------------------------------------------------------
+#-----------------------update order status----------------------------------
+#-------------------------------------------------------------------------
 def update_order_status(order_id, status):
     ws = get_worksheet("Orders")
-    cell = ws.find(order_id)
-    if cell:
-        # status column is column 11
-        ws.update_cell(cell.row, 12, status)
+    cells = ws.findall(order_id)  # findall, not find — gets every matching row
+    for cell in cells:
+        ws.update_cell(cell.row, 11, status)
+
+
+#-------------------------------------------------------------------------
+#-----------------------get_order_details---------------------------------
+#-------------------------------------------------------------------------
+def get_order_details(order_id):
+    ws = get_worksheet("Orders")
+    all_orders = ws.get_all_records()
+    matching_rows = [row for row in all_orders if row["Order ID"] == order_id]
+
+    if not matching_rows:
+        return None
+
+    first = matching_rows[0]
+    items = [
+        {"name": row["Product Name"], "qty": row["Quantity"], "price": row["Unit Price"]}
+        for row in matching_rows
+    ]
+    total = sum(item["qty"] * item["price"] for item in items)
+
+    return {
+        "shop_name": config.STORE_NAME,
+        "date": first["Timestamp"],
+        "customer_name": first["Customer Name"],
+        "user_id": first["User ID"],
+        "items": items,
+        "total": total
+    }
+
+
+
 
 # customer complainst:
 def write_complaint(user_id, customer_name, order_id, issue):
