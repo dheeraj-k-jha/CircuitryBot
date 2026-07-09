@@ -21,7 +21,7 @@ def create_payment_link(order_id, amount_rupees, customer_name, customer_phone, 
         },
         "notify": {"sms": True, "email": False},
         "reference_id": str(order_id),
-        "callback_url": "https://your-app-name.onrender.com/payment-success",
+        "callback_url": "https://your-actual-app-name.onrender.com/",
         "callback_method": "get"
     }
 

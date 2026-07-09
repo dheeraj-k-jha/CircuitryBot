@@ -398,7 +398,7 @@ async def checkout_phone(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         
         await update.message.reply_text(
-            f"✅ <b>Order Placed!</b>\n\n"
+            f"✅ <b>Pay to confirm your order!</b>\n\n"
             f"Order ID: <b>{order_id}</b>\n"
             f"Name: {name}\n"
             f"Phone: {phone}\n\n"
@@ -468,7 +468,7 @@ async def cancel_order(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 #-------------------------------------------------------------------------
-#-----------------------Conversation handler Wrapper----------------------
+#-----------------------Checkout handler Wrapper----------------------
 #-------------------------------------------------------------------------
 warnings.filterwarnings("ignore", message=".*per_message=False.*", category=PTBUserWarning)
 
@@ -511,7 +511,6 @@ async def contact(update: Update, context: ContextTypes.DEFAULT_TYPE):
 #-------------------------------------------------------------------------
 # conversation states
 COMP_NAME, COMP_ORDER_ID, COMP_ISSUE = range(3, 6)
-ENQ_NAME, ENQ_PHONE, ENQ_PRODUCT, ENQ_MESSAGE = range(6, 10)
 
 
 async def complaint_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -600,6 +599,9 @@ complaint_conv = ConversationHandler(
 #-------------------------------------------------------------------------
 #-----------------------Enquiry Handler-----------------------------------
 #-------------------------------------------------------------------------
+ENQ_NAME, ENQ_PHONE, ENQ_PRODUCT, ENQ_MESSAGE = range(6, 10)
+
+
 async def enquiry_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
