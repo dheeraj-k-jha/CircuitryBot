@@ -730,11 +730,6 @@ def run_flask():
 #-----------------------Main Function-------------------------------------
 #-------------------------------------------------------------------------
 def main():
-    flask_thread = Thread(target=run_flask)
-    flask_thread.daemon = True
-    flask_thread.start()
-    app = Application.builder().token(config.BOT_TOKEN).post_init(post_init).build()
-  
     # handlers
     app.add_handler(CommandHandler("start",start))
     # error handler
@@ -769,4 +764,8 @@ def main():
 
 # calling main()
 if __name__ == "__main__":
+    flask_thread = Thread(target=run_flask)
+    flask_thread.daemon = True
+    flask_thread.start()
+    app = Application.builder().token(config.BOT_TOKEN).post_init(post_init).build()
     main()
