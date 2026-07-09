@@ -16,17 +16,17 @@ def generate_invoice_pdf(order_id):
     pdf.ln(10)
 
     pdf.set_font("Arial", "B", 11)
-    pdf.cell(90, 8, "Item", border=1)
-    pdf.cell(30, 8, "Qty", border=1)
-    pdf.cell(35, 8, "Price", border=1)
-    pdf.cell(35, 8, "Subtotal", border=1, ln=True)
+    pdf.cell(100, 8, "Item", border=1)
+    pdf.cell(20, 8, "Qty", border=1, align="C")
+    pdf.cell(35, 8, "Price", border=1, align="R")
+    pdf.cell(35, 8, "Subtotal", border=1, align="R", ln=True)
 
     pdf.set_font("Arial", "", 11)
     for item in order["items"]:
-        pdf.cell(90, 8, item["name"], border=1)
-        pdf.cell(30, 8, str(item["qty"]), border=1)
-        pdf.cell(35, 8, f"Rs.{item['price']}", border=1)
-        pdf.cell(35, 8, f"Rs.{item['qty'] * item['price']}", border=1, ln=True)
+        pdf.cell(100, 8, item["name"], border=1)
+        pdf.cell(20, 8, str(item["qty"]), border=1, align="C")
+        pdf.cell(35, 8, f"Rs.{item['price']}", border=1, align="R")
+        pdf.cell(35, 8, f"Rs.{item['qty'] * item['price']}", border=1, align="R", ln=True)
 
     pdf.ln(5)
     pdf.set_font("Arial", "B", 12)

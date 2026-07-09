@@ -2,7 +2,6 @@ from flask import Flask, request, jsonify
 import asyncio
 import config
 import razorpay
-import os
 import sheets
 from invoice import generate_invoice_pdf
 from telegram import Bot
@@ -49,12 +48,15 @@ def razorpay_webhook():
         entity = data["payload"]["payment_link"]["entity"]
         order_id = entity["reference_id"]
 
-        order = sheets.get_order_details(order_id)          # fetches User ID
+        order = sheets.get_order_details(order_id)
         if order is None:
             return jsonify({"status": "order not found"}), 404
 
-        sheets.update_order_status(order_id, "Paid")   # updates status to Paid
-        chat_id = order["user_id"]                     # pulled straight from order dict
+        if order["status"] == "Paid":              # NEW — idempotency check
+            return jsonify({"status": "already processed"}), 200
+
+        sheets.update_order_status(order_id, "Paid")
+        chat_id = order["user_id"]
         pdf_path = generate_invoice_pdf(order_id)
 
         asyncio.run(bot.send_document(chat_id=chat_id, document=open(pdf_path, "rb")))
