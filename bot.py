@@ -500,13 +500,13 @@ async def contact(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ),
         parse_mode="HTML",
         reply_markup=InlineKeyboardMarkup(
-            [InlineKeyboardButton("🚨 File Complaint", callback_data="complaint"),
+            [[InlineKeyboardButton("🚨 File Complaint", callback_data="complaint"),
             InlineKeyboardButton("💬 Enquiry", callback_data="enquiry")],
-            [InlineKeyboardButton("🏠 Main Menu", callback_data="back_to_categories")])
+            [InlineKeyboardButton("🏠 Main Menu", callback_data="back_to_categories")]])
         )
 
 
-#-------------------------------------------------------------------------
+#-------------------------------------------------------------------------  
 #-----------------------Complaint Handler---------------------------------
 #-------------------------------------------------------------------------
 # conversation states
@@ -730,6 +730,9 @@ def run_flask():
 #-----------------------Main Function-------------------------------------
 #-------------------------------------------------------------------------
 def main():
+    flask_thread = Thread(target=run_flask)
+    flask_thread.daemon = True
+    flask_thread.start()
     app = Application.builder().token(config.BOT_TOKEN).post_init(post_init).build()
   
     # handlers
@@ -766,7 +769,4 @@ def main():
 
 # calling main()
 if __name__ == "__main__":
-    flask_thread = Thread(target=run_flask)
-    flask_thread.daemon = True
-    flask_thread.start()
     main()
