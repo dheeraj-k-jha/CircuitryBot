@@ -48,6 +48,9 @@ def build_category_keyboard(context=None):
 #-----------------------Start Command-------------------------------------
 #-------------------------------------------------------------------------
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    user_name = update.effective_user.first_name or "Unknown"
+
     await update.message.reply_text(
         f"👋 Welcome to <b>{config.STORE_NAME}</b>!\n\n"
         f"🛍️ Browse our products and place orders directly here.\n"
@@ -56,6 +59,11 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode="HTML",
         reply_markup=build_category_keyboard(context)
     )
+#----------------------------Saving user---------------------------------
+    already_exists = await asyncio.to_thread(sheets.user_exists, user_id)
+    if not already_exists:
+        await asyncio.to_thread(sheets.add_user, user_id, user_name)
+#----------------------------Sending Welcome Message---------------------
 
 
 # fetching and printing categories as inline buttons
@@ -87,6 +95,41 @@ async def back_to_categories(update: Update , context: ContextTypes.DEFAULT_TYPE
     reply_markup=build_category_keyboard(context)
   )
 
+
+#-------------------------------------------------------------------------
+#-----------------------Announcement Command------------------------------
+#-------------------------------------------------------------------------
+async def announce(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_user.id != config.OWNER_ID:
+        return  # silently ignored for anyone else — command doesn't exist to them
+
+    message_text = " ".join(context.args)
+    if not message_text:
+        await update.message.reply_text("Usage: /announce your message here")
+        return
+
+    await update.message.reply_text("📢 Broadcast started in background...")
+    asyncio.create_task(broadcast_message(context.bot, message_text))
+
+
+async def broadcast_message(bot, text):
+    user_ids = await asyncio.to_thread(sheets.get_all_user_ids)
+    sent_count = 0
+    failed_count = 0
+
+    for uid in user_ids:
+        try:
+            await bot.send_message(chat_id=int(uid), text=text)
+            sent_count += 1
+        except Exception as e:
+            print(f"Failed to send to {uid}: {e}")
+            failed_count += 1
+        await asyncio.sleep(0.05)  # throttle to avoid Telegram rate limits
+
+    await bot.send_message(
+        chat_id=config.OWNER_ID,
+        text=f"📢 Broadcast complete.\nSent: {sent_count}\nFailed: {failed_count}"
+    )
 
 
 #-------------------------------------------------------------------------
@@ -243,11 +286,18 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE):
              InlineKeyboardButton("🏠 Main Menu", callback_data="back_to_categories")]
         ]
     
-    await query.edit_message_text(
-        f"🛒 <b>Your Cart</b>\n\n{summary}",
+    try:
+        await query.message.delete()
+    except Exception as e:
+        print(f"Could not delete message: {e}")
+
+    await context.bot.send_message(
+        chat_id=query.message.chat_id,
+        text=f"🛒 <b>Your Cart</b>\n\n{summary}",
         parse_mode="HTML",
         reply_markup=InlineKeyboardMarkup(buttons)
-    )
+)
+    
 
 async def clear_cart(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -739,7 +789,6 @@ def main():
   
     # Callback query handlers:
     app.add_handler(CallbackQueryHandler(add_to_cart, pattern="^addcart_"))
-    app.add_handler(CallbackQueryHandler(view_cart, pattern="^view_cart$"))
     app.add_handler(CallbackQueryHandler(clear_cart, pattern="^clear_cart$"))
     app.add_handler(CallbackQueryHandler(category_selected,pattern="^cat_"))
     app.add_handler(CallbackQueryHandler(product_selected, pattern="^prod_"))
@@ -757,11 +806,21 @@ def main():
 
     # contact handler:
     app.add_handler(CallbackQueryHandler(contact, pattern="^contact$"))
+    app.add_handler(CommandHandler("contact",contact))
 
     # refresh command:
     app.add_handler(CommandHandler("refresh", refresh))
+
+    # announcement handler:
+    app.add_handler(CommandHandler("announce", announce))
+
+    # View Cart handlers:
+    app.add_handler(CallbackQueryHandler(view_cart, pattern="^view_cart$"))
+    app.add_handler(CommandHandler("view cart",view_cart))
+
     # fetching updates
     app.run_polling()
+
 
 
 # calling main()

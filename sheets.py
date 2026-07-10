@@ -209,3 +209,22 @@ def write_enquiry(user_id, customer_name, phone, product_interest, message):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     ws.append_row([enquiry_id, timestamp, str(user_id), customer_name, phone, product_interest, message, "Open"])
     return enquiry_id
+
+
+#-------------------------------------------------------------------------
+#-----------------------Announce Function---------------------------------
+#-------------------------------------------------------------------------
+def user_exists(user_id):
+    ws = get_worksheet("Users")
+    cell = ws.find(str(user_id))
+    return cell is not None
+
+def add_user(user_id, name):
+    ws = get_worksheet("Users")
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    ws.append_row([str(user_id), name, timestamp])
+
+def get_all_user_ids():
+    ws = get_worksheet("Users")
+    all_users = ws.get_all_records()
+    return [row["User ID"] for row in all_users]
