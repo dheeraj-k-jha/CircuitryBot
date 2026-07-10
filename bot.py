@@ -273,10 +273,14 @@ async def add_to_cart(update: Update, context: ContextTypes.DEFAULT_TYPE):
 #-------------------------------------------------------------------------
 async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    await query.answer()
-    
+    if query:
+        await query.answer()
+        chat_id = query.message.chat_id
+    else:
+        chat_id = update.effective_chat.id
+
     summary = cart_manager.get_cart_summary(context)
-    
+
     if cart_manager.is_cart_empty(context):
         buttons = [[InlineKeyboardButton("🏠 Main Menu", callback_data="back_to_categories")]]
     else:
@@ -285,18 +289,19 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("🗑️ Clear Cart", callback_data="clear_cart"),
              InlineKeyboardButton("🏠 Main Menu", callback_data="back_to_categories")]
         ]
-    
-    try:
-        await query.message.delete()
-    except Exception as e:
-        print(f"Could not delete message: {e}")
+
+    if query:
+        try:
+            await query.message.delete()
+        except Exception as e:
+            print(f"Could not delete message: {e}")
 
     await context.bot.send_message(
-        chat_id=query.message.chat_id,
+        chat_id=chat_id,
         text=f"🛒 <b>Your Cart</b>\n\n{summary}",
         parse_mode="HTML",
         reply_markup=InlineKeyboardMarkup(buttons)
-)
+    )
     
 
 async def clear_cart(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -399,17 +404,23 @@ WAITING_NAME, WAITING_PHONE = range(2)  # removed WAITING_UPI_ID — was range(3
 
 async def checkout_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    await query.answer()
-    
+    if query:
+        await query.answer()
+        chat_id = query.message.chat_id
+    else:
+        chat_id = update.effective_chat.id
+
     if cart_manager.is_cart_empty(context):
         await context.bot.send_message(
-           chat_id = query.message.chat_id,
-           text="Your cart is empty.")
+            chat_id=chat_id,
+            text="Your cart is empty.")
         return ConversationHandler.END
-    
-    await query.message.delete()
+
+    if query:
+        await query.message.delete()
+
     await context.bot.send_message(
-        chat_id = query.message.chat_id,
+        chat_id=chat_id,
         text="📝 <b>Checkout:</b>\n\n<b>Please enter your full name</b>:",
         parse_mode="HTML"
     )
@@ -540,22 +551,27 @@ checkout_conv = ConversationHandler(
 #-------------------------------------------------------------------------
 async def contact(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    await query.answer()
+    if query:
+        await query.answer()
+        chat_id = query.message.chat_id
+    else:
+        chat_id = update.effective_chat.id
+
     await context.bot.send_message(
-        chat_id=update.effective_chat.id,
+        chat_id=chat_id,
         text=(
             f"📞 <b>Contact Us</b>\n\n"
             f"📱 Phone: {config.STORE_PHONE}\n\n"
             f"📧 Email: {config.STORE_EMAIL}\n\n"
             f"📍 Address: {config.STORE_ADDRESS}\n\n"
-            f"🕐 Hours: {config.STORE_HOURS}"
+            f"⏰ Hours: {config.STORE_HOURS}"
         ),
         parse_mode="HTML",
         reply_markup=InlineKeyboardMarkup(
             [[InlineKeyboardButton("🚨 File Complaint", callback_data="complaint"),
-            InlineKeyboardButton("💬 Enquiry", callback_data="enquiry")],
-            [InlineKeyboardButton("🏠 Main Menu", callback_data="back_to_categories")]])
-        )
+              InlineKeyboardButton("💬 Enquiry", callback_data="enquiry")],
+             [InlineKeyboardButton("🏠 Main Menu", callback_data="back_to_categories")]])
+    )
 
 
 #-------------------------------------------------------------------------  
