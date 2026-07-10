@@ -816,7 +816,7 @@ def main():
 
     # View Cart handlers:
     app.add_handler(CallbackQueryHandler(view_cart, pattern="^view_cart$"))
-    app.add_handler(CommandHandler("view cart",view_cart))
+    app.add_handler(CommandHandler("view_cart",view_cart))
 
     # fetching updates
     app.run_polling()
